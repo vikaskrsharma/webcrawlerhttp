@@ -31,11 +31,21 @@ async function crawlPage(baseUrl, currentUrl, pages) {
             return pages;
         }
 
-        const htmlBody = await resp.text();
+        const regex = /<style\b[^>]*>[\s\S]*?<\/style>/gi;
+        const htmlBody = (await resp.text()).replace(regex, '');
 
         const nextUrls = getUrlsFromHtml(htmlBody, baseUrl);
         nextUrls.forEach(async (nextUrl) => {
             pages = await crawlPage(baseUrl, nextUrl, pages);
+            // const normalizedCurrentUrl = normalizeUrl(nextUrl);
+            // if (pages[normalizedCurrentUrl] > 0) {
+            //     pages[normalizedCurrentUrl]++;
+
+            // } else {
+            //     pages[normalizedCurrentUrl] = 1;
+            // }
+
+
         });
 
     } catch (error) {
@@ -47,30 +57,34 @@ async function crawlPage(baseUrl, currentUrl, pages) {
 }
 function getUrlsFromHtml(htmlBody, baseUrl) {
     const urls = [];
-    const dom = new JSDOM(htmlBody);
-    const linkElements = dom.window.document.querySelectorAll('a');
-    linkElements.forEach((linkElement) => {
-        const linkUrl = linkElement.href;
-        if (linkUrl.slice(0, 1) === '/') {
-            // relative url
-            try {
-                const urlObj = new URL(`${baseUrl}${linkUrl}`);
-                urls.push(urlObj.href);
-            } catch (error) {
-                console.log(error.message);
+    try {
+        const dom = new JSDOM(htmlBody);
+        const linkElements = dom.window.document.querySelectorAll('a');
+        linkElements.forEach((linkElement) => {
+            const linkUrl = linkElement.href;
+            if (linkUrl.slice(0, 1) === '/') {
+                // relative url
+                try {
+                    const urlObj = new URL(`${baseUrl}${linkUrl}`);
+                    urls.push(urlObj.href);
+                } catch (error) {
+                    console.log(error.message);
+                }
+
+            } else {
+                // absolute url
+                try {
+                    const urlObj = new URL(linkUrl);
+                    urls.push(urlObj.href);
+                } catch (error) {
+                    console.log(error.message);
+                }
             }
 
-        } else {
-            // absolute url
-            try {
-                const urlObj = new URL(linkUrl);
-                urls.push(urlObj.href);
-            } catch (error) {
-                console.log(error.message);
-            }
-        }
-
-    });
+        });
+    } catch (error) {
+        console.log(`count not parse file`);
+    }
 
     return urls;
 }
